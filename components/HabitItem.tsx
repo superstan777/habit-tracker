@@ -21,8 +21,9 @@ interface Props {
   id: number;
 }
 
-const colorActive = "#4CAF50"; // Dark Green (Completed)
-const colorNonActive = "#A5D6A7"; // Light Green (Planned)
+const colorCompleted = "#34C759"; // Dark Green (Completed)
+const colorPending = "#A5D6A7"; // Light Green (Planned)
+const colorNotCompleted = "#FF3B30";
 const colorDefaultText = "black"; // Default text color for days without events
 
 export const HabitItem: React.FC<Props> = ({
@@ -35,7 +36,6 @@ export const HabitItem: React.FC<Props> = ({
   const database = useSQLiteContext();
 
   const position = useSharedValue(0);
-  console.log(events);
 
   useFocusEffect(
     useCallback(() => {
@@ -122,10 +122,19 @@ export const HabitItem: React.FC<Props> = ({
               let bgColor = "transparent";
               let textColor = colorDefaultText;
 
-              if (event) {
-                bgColor = event.completed_at ? colorActive : colorNonActive;
-                textColor = "white"; // White text for days that have events
+              if (event?.completed_at) {
+                bgColor = colorCompleted; // Green if completed
+              } else if (
+                new Date(dateString).getDate() < currentDate.getDate()
+              ) {
+                console.log(currentDate.getDate());
+
+                bgColor = colorNotCompleted; // Red if past date and not completed
+              } else {
+                bgColor = colorPending; // Light green for today & future
               }
+
+              textColor = event ? "white" : colorDefaultText;
 
               return (
                 <View key={index} style={styles.daysContainer}>
@@ -137,7 +146,7 @@ export const HabitItem: React.FC<Props> = ({
                         backgroundColor: bgColor,
                         borderWidth:
                           date.getDate() === currentDate.getDate() ? 4 : 0,
-                        borderColor: colorActive,
+                        borderColor: colorCompleted,
                       },
                     ]}
                   >
