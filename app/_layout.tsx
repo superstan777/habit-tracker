@@ -4,13 +4,12 @@ import { SQLiteProvider, SQLiteDatabase } from "expo-sqlite";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
+  // add AppState here
+
   const createDbIfNeeded = async (db: SQLiteDatabase) => {
-    //
-    console.log("Creating database");
     try {
       await db.execAsync("PRAGMA foreign_keys = ON;");
 
-      // Create a table
       await db.execAsync(
         `CREATE TABLE IF NOT EXISTS habits (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,7 +30,7 @@ export default function RootLayout() {
         `
       );
 
-      console.log("Database created");
+      console.log("Database loaded");
     } catch (error) {
       console.error("Error creating database:", error);
     }

@@ -11,29 +11,13 @@ import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useState, useCallback } from "react";
 import { habitType } from "@/types/types";
-
-function getCurrentWeek() {
-  const now = new Date();
-  const start = new Date(
-    now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))
-  );
-
-  return Array.from(
-    { length: 7 },
-    (_, i) => new Date(start.getTime() + i * 86400000)
-  );
-}
-
-function getCurrentDate() {
-  return new Date();
-}
+import { useStore } from "@/utility/store";
 
 export default function Index() {
+  const { currentDate, currentWeek } = useStore();
+
   const database = useSQLiteContext();
   const [habitData, setHabitData] = useState<habitType[]>([]);
-
-  const [currentWeek, setCurrentWeek] = useState(getCurrentWeek());
-  const [currentDate, setCurrentDate] = useState(getCurrentDate());
 
   useFocusEffect(
     useCallback(() => {

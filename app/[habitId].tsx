@@ -10,8 +10,11 @@ import { useSQLiteContext } from "expo-sqlite";
 import { router } from "expo-router";
 import Button from "@/components/Button";
 import { useLocalSearchParams } from "expo-router";
+import { useStore } from "@/utility/store";
 
 export const HabitDetailsScreen = () => {
+  const { currentDate } = useStore();
+
   const { habitId } = useLocalSearchParams();
 
   const database = useSQLiteContext();
@@ -50,58 +53,11 @@ export const HabitDetailsScreen = () => {
     });
   };
 
-  // const updateHabit = async () => {
-  //   try {
-  //     const today = new Date();
-  //     const todayIndex = today.getDay(); // 0 (Sunday) to 6 (Saturday)
-  //     const adjustedTodayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
-
-  //     const weekStart = new Date(today);
-  //     weekStart.setDate(today.getDate() - todayIndex + 1); // Move to Monday
-
-  //     // Convert selected days array to JSON
-  //     const updatedDaysJson = JSON.stringify(selectedDays);
-
-  //     // Update the habit name and selected days
-  //     await database.runAsync(
-  //       "UPDATE habits SET name = ?, days = ? WHERE id = ?",
-  //       [habitName, updatedDaysJson, habitId]
-  //     );
-
-  //     // Delete only future events of the current week
-  //     const todayDateString = today.toISOString().split("T")[0]; // Format as YYYY-MM-DD
-  //     await database.runAsync(
-  //       `DELETE FROM habit_events WHERE habitId = ? AND date >= ?`,
-  //       [habitId, todayDateString] // Use the formatted date string
-  //     );
-
-  //     // Insert new habit events only for the rest of this week
-  //     for (let i = adjustedTodayIndex; i < 7; i++) {
-  //       const nextDate = new Date(weekStart);
-  //       nextDate.setDate(today.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
-
-  //       const dayIndex = nextDate.getDay(); // Get the day index
-
-  //       if (nextDate >= today && selectedDays[dayIndex]) {
-  //         await database.runAsync(
-  //           `INSERT INTO habit_events (habitId, date, completed_at) VALUES (?, ?, NULL)`,
-  //           [habitId, nextDate.toISOString().split("T")[0]] // Store the date in YYYY-MM-DD format
-  //         );
-  //       }
-  //     }
-
-  //     console.log("Habit updated successfully!");
-  //     router.back();
-  //   } catch (error) {
-  //     console.error("Error updating habit:", error);
-  //   }
-  // };
-
   const updateHabit = async () => {
     try {
       // Get today's date and day index
-      const today = new Date();
-      const todayIndex = today.getDay(); // 0 (Sun) to 6 (Sat)
+
+      const todayIndex = currentDate.getDay(); // 0 (Sun) to 6 (Sat)
 
       // Adjust todayIndex to match our `selectedDays` array (Mon = 0, Sun = 6)
       const adjustedTodayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
@@ -116,7 +72,7 @@ export const HabitDetailsScreen = () => {
       );
 
       // Delete existing events for this habit in the current week
-      const todayDateString = today.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+      const todayDateString = currentDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       await database.runAsync(
         `DELETE FROM habit_events WHERE habit_id = ? AND date >= ?`,
         [habitId, todayDateString] // Use the formatted date string to delete today's and future events
@@ -126,7 +82,7 @@ export const HabitDetailsScreen = () => {
       for (let i = adjustedTodayIndex; i < 7; i++) {
         if (selectedDays[i]) {
           const nextDate = new Date();
-          nextDate.setDate(today.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
+          nextDate.setDate(currentDate.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
 
           // Format the date in YYYY-MM-DD format
           const formattedDate = nextDate.toISOString().split("T")[0];
