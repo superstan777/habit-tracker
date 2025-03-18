@@ -67,6 +67,8 @@ export const HabitItem: React.FC<Props> = ({
     );
   };
 
+  console.log(events);
+
   const renderFrequency = () => {
     return events.length === 7 ? "everyday" : `${events.length} times a week`;
   };
@@ -122,19 +124,18 @@ export const HabitItem: React.FC<Props> = ({
               let bgColor = "transparent";
               let textColor = colorDefaultText;
 
-              if (event?.completed_at) {
-                bgColor = colorCompleted; // Green if completed
-              } else if (
-                new Date(dateString).getDate() < currentDate.getDate()
-              ) {
-                console.log(currentDate.getDate());
-
-                bgColor = colorNotCompleted; // Red if past date and not completed
+              if (!event) {
+                bgColor = "transparent";
+              } else if (event.completed_at) {
+                bgColor = colorCompleted;
+                textColor = "white";
+              } else if (date < currentDate) {
+                bgColor = colorNotCompleted;
+                textColor = "white";
               } else {
-                bgColor = colorPending; // Light green for today & future
+                bgColor = colorPending;
+                textColor = "white";
               }
-
-              textColor = event ? "white" : colorDefaultText;
 
               return (
                 <View key={index} style={styles.daysContainer}>
