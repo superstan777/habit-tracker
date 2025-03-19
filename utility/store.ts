@@ -3,7 +3,7 @@ import { create } from "zustand";
 interface AppState {
   currentDate: Date;
   currentWeek: Date[];
-  setCurrentDate: (date: Date) => void;
+  setCurrentDate: () => void; // No need for a parameter
 }
 
 const getCurrentWeek = (currentDate: Date): Date[] => {
@@ -24,9 +24,9 @@ export const useStore = create<AppState>((set) => ({
   currentDate: new Date(),
   currentWeek: getCurrentWeek(new Date()),
 
-  setCurrentDate: (date: Date) =>
-    set((state) => {
-      const newCurrentWeek = getCurrentWeek(date);
-      return { currentDate: date, currentWeek: newCurrentWeek };
+  setCurrentDate: () =>
+    set(() => {
+      const now = new Date();
+      return { currentDate: now, currentWeek: getCurrentWeek(now) };
     }),
 }));
