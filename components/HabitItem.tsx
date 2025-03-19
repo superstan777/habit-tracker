@@ -1,8 +1,6 @@
 import { Pressable, StyleSheet, Text, View, Dimensions } from "react-native";
-import { Link, router } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSQLiteContext } from "expo-sqlite";
-import { eventType } from "@/types/types";
 import { useFocusEffect } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -11,6 +9,8 @@ import Animated, {
   useAnimatedStyle,
   runOnJS,
 } from "react-native-reanimated";
+import { router } from "expo-router";
+import { eventType } from "@/types/types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -21,10 +21,10 @@ interface Props {
   id: number;
 }
 
-const colorCompleted = "#34C759"; // Dark Green (Completed)
-const colorPending = "#A5D6A7"; // Light Green (Planned)
+const colorCompleted = "#34C759";
+const colorPending = "#A5D6A7";
 const colorNotCompleted = "#FF3B30";
-const colorDefaultText = "black"; // Default text color for days without events
+const colorDefaultText = "black";
 
 export const HabitItem: React.FC<Props> = ({
   name,
@@ -34,7 +34,6 @@ export const HabitItem: React.FC<Props> = ({
 }) => {
   const [events, setEvents] = useState<eventType[]>([]);
   const database = useSQLiteContext();
-
   const position = useSharedValue(0);
 
   useFocusEffect(
@@ -44,13 +43,12 @@ export const HabitItem: React.FC<Props> = ({
   );
 
   const loadEvents = async () => {
-    // Fetch only this week's events for the habit
     const result = await database.getAllAsync<eventType>(
       "SELECT * FROM habit_events WHERE habit_id = ? AND date BETWEEN ? AND ?",
       [
         id,
-        currentWeek[0].toISOString().split("T")[0], // Start of the week (YYYY-MM-DD)
-        currentWeek[6].toISOString().split("T")[0], // End of the week (YYYY-MM-DD)
+        currentWeek[0].toISOString().split("T")[0],
+        currentWeek[6].toISOString().split("T")[0],
       ]
     );
     setEvents(result);
@@ -58,30 +56,23 @@ export const HabitItem: React.FC<Props> = ({
 
   const updateHabitEvent = async () => {
     const today = new Date().toISOString().split("T")[0];
-
     await database.runAsync(
-      `UPDATE habit_events
-        SET completed_at = ?
-        WHERE habit_id = ? AND date = ?`,
+      `UPDATE habit_events SET completed_at = ? WHERE habit_id = ? AND date = ?`,
       [Date.now(), id, today]
     );
   };
 
-  console.log(events);
+  const memoizedEvents = useMemo(() => events, [events]);
 
-  const renderFrequency = () => {
-    return events.length === 7 ? "everyday" : `${events.length} times a week`;
-  };
+  const renderFrequency = useMemo(() => {
+    return memoizedEvents.length === 7
+      ? "everyday"
+      : `${memoizedEvents.length} times a week`;
+  }, [memoizedEvents]);
 
   const renderDays = (index: number) => {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     return days[index] || "";
-  };
-
-  // animations
-  const resetPosition = () => {
-    position.value = -SCREEN_WIDTH; // Move to the left side
-    position.value = withTiming(0, { duration: 300 }); // Animate back to the center
   };
 
   const panGesture = Gesture.Pan()
@@ -91,13 +82,11 @@ export const HabitItem: React.FC<Props> = ({
     .onEnd(() => {
       if (position.value > SCREEN_WIDTH / 2) {
         position.value = withTiming(SCREEN_WIDTH, { duration: 300 }, () => {
-          runOnJS(resetPosition)(); // Reset from the left side after animation
+          runOnJS(loadEvents)();
         });
-
         runOnJS(updateHabitEvent)();
-        runOnJS(loadEvents)();
       } else {
-        position.value = withTiming(0, { duration: 300 }); // Snap back if not swiped enough
+        position.value = withTiming(0, { duration: 300 });
       }
     });
 
@@ -114,13 +103,13 @@ export const HabitItem: React.FC<Props> = ({
           }
         >
           <View style={styles.habitHeader}>
-            <Text style={styles.habitTitle}>{name} </Text>
-            <Text style={styles.habitText}>{renderFrequency()}</Text>
+            <Text style={styles.habitTitle}>{name}</Text>
+            <Text style={styles.habitText}>{renderFrequency}</Text>
           </View>
           <View style={styles.daysRow}>
             {currentWeek.map((date, index) => {
-              const dateString = date.toISOString().split("T")[0]; // Format date to YYYY-MM-DD
-              const event = events.find((e) => e.date === dateString);
+              const dateString = date.toISOString().split("T")[0];
+              const event = memoizedEvents.find((e) => e.date === dateString);
               let bgColor = "transparent";
               let textColor = colorDefaultText;
 
