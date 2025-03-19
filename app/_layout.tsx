@@ -1,10 +1,38 @@
+import { useEffect, useState } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { Stack, router } from "expo-router";
 import Button from "@/components/Button";
 import { SQLiteProvider, SQLiteDatabase } from "expo-sqlite";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useStore } from "@/utility/store";
 
 export default function RootLayout() {
-  // add AppState here
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState
+  );
+
+  const { setCurrentDate, currentDate } = useStore();
+
+  console.log(appState);
+  console.log(currentDate);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.match(/inactive|background/) && nextAppState === "active") {
+        setCurrentDate(); // Update current date when app becomes active
+      }
+      setAppState(nextAppState);
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [appState, setCurrentDate]);
 
   const createDbIfNeeded = async (db: SQLiteDatabase) => {
     try {
@@ -26,8 +54,7 @@ export default function RootLayout() {
           date TEXT NOT NULL,
           completed_at INTEGER DEFAULT NULL,
           FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE
-        );
-        `
+        );`
       );
 
       console.log("Database loaded");
@@ -49,9 +76,6 @@ export default function RootLayout() {
             options={{
               presentation: "modal",
               headerTitle: "Add habit",
-
-              headerTitleStyle: {},
-
               headerLeft: () => (
                 <Button variant="ghost" onPress={() => router.back()}>
                   Cancel
