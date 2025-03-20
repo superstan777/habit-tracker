@@ -36,6 +36,8 @@ export const HabitItem: React.FC<Props> = ({
   const database = useSQLiteContext();
   const position = useSharedValue(0);
 
+  console.log(events);
+
   useFocusEffect(
     useCallback(() => {
       loadEvents();
@@ -75,6 +77,11 @@ export const HabitItem: React.FC<Props> = ({
     return days[index] || "";
   };
 
+  const resetPosition = () => {
+    position.value = -SCREEN_WIDTH; // Move to the left side
+    position.value = withTiming(0, { duration: 300 }); // Animate back to the center
+  };
+
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       position.value = e.translationX;
@@ -82,11 +89,13 @@ export const HabitItem: React.FC<Props> = ({
     .onEnd(() => {
       if (position.value > SCREEN_WIDTH / 2) {
         position.value = withTiming(SCREEN_WIDTH, { duration: 300 }, () => {
-          runOnJS(loadEvents)();
+          runOnJS(resetPosition)(); // Reset from the left side after animation
         });
+
         runOnJS(updateHabitEvent)();
+        runOnJS(loadEvents)();
       } else {
-        position.value = withTiming(0, { duration: 300 });
+        position.value = withTiming(0, { duration: 300 }); // Snap back if not swiped enough
       }
     });
 
