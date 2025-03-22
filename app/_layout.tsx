@@ -6,6 +6,8 @@ import { SQLiteProvider } from "expo-sqlite";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useStore } from "@/utility/store";
 import { DB_NAME, createDbIfNeeded } from "@/utility/db";
+import { addHabitEventsForNextWeek } from "@/utility/dbFunctions";
+import { database } from "@/utility/db";
 
 export default function RootLayout() {
   const [appState, setAppState] = useState<AppStateStatus>(
@@ -15,9 +17,14 @@ export default function RootLayout() {
   const { setCurrentDate } = useStore();
 
   useEffect(() => {
+    addHabitEventsForNextWeek(database);
+  }, []);
+
+  useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appState.match(/inactive|background/) && nextAppState === "active") {
         setCurrentDate(); // Update current date when app becomes active
+        addHabitEventsForNextWeek(database);
       }
       setAppState(nextAppState);
     };
