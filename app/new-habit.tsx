@@ -13,38 +13,27 @@ import Button from "@/components/Button";
 export const NewHabitScreen = () => {
   const database = useSQLiteContext();
   const [habitName, setHabitName] = useState("");
-  const [selectedDays, setSelectedDays] = useState([
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-  ]);
+  const [selectedDays, setSelectedDays] = useState(
+    Array(7).fill(false) // Initialize with 7 `false` values
+  );
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const toggleDay = (index: number) => {
     setSelectedDays((prev) => {
       const newDays = [...prev];
-      newDays[index] = !newDays[index]; // Toggle the boolean value
+      newDays[index] = !newDays[index]; // Toggle the selected day
       return newDays;
     });
   };
 
-  // const createHabit = async () => {
-  //   try {
-  //     const createdAt = Date.now();
-  //     await database.runAsync(
-  //       `INSERT INTO habits (name, days, created_at) VALUES (?, ?, ?)`,
-  //       [habitName, JSON.stringify(selectedDays), createdAt]
-  //     );
-  //     router.back();
-  //   } catch (error) {
-  //     console.error("Error saving item:", error);
-  //   }
-  // };
+  const getWeekStartDate = (date: Date) => {
+    const dayOfWeek = date.getDay(); // 0 (Sun) to 6 (Sat)
+    const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust to our Mon-Sun format
+    const startDate = new Date(date);
+    startDate.setDate(date.getDate() - adjustedDayOfWeek);
+    return startDate;
+  };
 
   const createHabit = async () => {
     try {
@@ -54,30 +43,30 @@ export const NewHabitScreen = () => {
           `INSERT INTO habits (name, days, created_at) VALUES (?, ?, ?)`,
           [habitName, JSON.stringify(selectedDays), createdAt]
         )
-        .then((result) => result.lastInsertRowId); // Get the inserted habit's ID
+        .then((result) => result.lastInsertRowId);
 
-      // Get today's date and day index
       const today = new Date();
-      const todayIndex = today.getDay(); // 0 (Sun) to 6 (Sat)
+      const currentWeekStart = getWeekStartDate(today);
+      const nextWeekStart = new Date(currentWeekStart);
+      nextWeekStart.setDate(currentWeekStart.getDate() + 7); // Move to next week
 
-      // Adjust todayIndex to match our `selectedDays` array (Mon = 0, Sun = 6)
-      const adjustedTodayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
+      const addEventsForWeek = async (weekStart: Date) => {
+        for (let i = 0; i < 7; i++) {
+          if (selectedDays[i]) {
+            const eventDate = new Date(weekStart);
+            eventDate.setDate(weekStart.getDate() + i);
+            const formattedDate = eventDate.toISOString().split("T")[0];
 
-      // Iterate over the next days until Sunday (end of current week)
-      for (let i = adjustedTodayIndex; i < 7; i++) {
-        if (selectedDays[i]) {
-          const nextDate = new Date();
-          nextDate.setDate(today.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
-
-          // Format the date in YYYY-MM-DD format
-          const formattedDate = nextDate.toISOString().split("T")[0];
-
-          await database.runAsync(
-            `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
-            [habitId, formattedDate, null]
-          );
+            await database.runAsync(
+              `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
+              [habitId, formattedDate, null]
+            );
+          }
         }
-      }
+      };
+
+      await addEventsForWeek(currentWeekStart);
+      await addEventsForWeek(nextWeekStart);
 
       router.back();
     } catch (error) {

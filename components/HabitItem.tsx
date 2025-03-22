@@ -36,8 +36,6 @@ export const HabitItem: React.FC<Props> = ({
   const database = useSQLiteContext();
   const position = useSharedValue(0);
 
-  console.log(events);
-
   useFocusEffect(
     useCallback(() => {
       loadEvents();
