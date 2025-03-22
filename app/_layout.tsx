@@ -13,11 +13,26 @@ export default function RootLayout() {
   const [appState, setAppState] = useState<AppStateStatus>(
     AppState.currentState
   );
-
   const { setCurrentDate } = useStore();
+  let midnightTimeout: NodeJS.Timeout | null = null; // Store the timeout reference
+
+  // Function to calculate time until midnight and set a timeout
+  const scheduleMidnightUpdate = () => {
+    if (midnightTimeout) clearTimeout(midnightTimeout); // Clear any existing timeout
+
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0); // Set time to 00:00 of next day
+    const timeUntilMidnight = midnight.getTime() - now.getTime();
+
+    midnightTimeout = setTimeout(() => {
+      setCurrentDate(); // Update the UI for the new date
+    }, timeUntilMidnight);
+  };
 
   useEffect(() => {
-    addHabitEventsForNextWeek(database);
+    addHabitEventsForNextWeek(database); // Ensure next week's events are added
+    scheduleMidnightUpdate(); // Schedule the midnight update
   }, []);
 
   useEffect(() => {
@@ -25,7 +40,13 @@ export default function RootLayout() {
       if (appState.match(/inactive|background/) && nextAppState === "active") {
         setCurrentDate(); // Update current date when app becomes active
         addHabitEventsForNextWeek(database);
+        scheduleMidnightUpdate(); // Reset the midnight update
       }
+
+      if (nextAppState !== "active" && midnightTimeout) {
+        clearTimeout(midnightTimeout); // Clear timeout to avoid memory leaks
+      }
+
       setAppState(nextAppState);
     };
 
@@ -36,6 +57,7 @@ export default function RootLayout() {
 
     return () => {
       subscription.remove();
+      if (midnightTimeout) clearTimeout(midnightTimeout); // Cleanup on unmount
     };
   }, [appState, setCurrentDate]);
 
