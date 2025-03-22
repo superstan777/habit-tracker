@@ -1,7 +1,13 @@
-import { SQLiteDatabase } from "expo-sqlite";
+import { SQLiteDatabase, openDatabaseAsync } from "expo-sqlite";
 
-// export const DB_NAME = "habit_tracker.db";
-export const DB_NAME = "test1111111111.db";
+export const DB_NAME = "habit_tracker111.db";
+// export const DB_NAME = "test1111111111.db";
+
+export let database: SQLiteDatabase;
+
+(async () => {
+  database = await openDatabaseAsync(DB_NAME);
+})();
 
 export const createDbIfNeeded = async (db: SQLiteDatabase) => {
   try {
@@ -23,7 +29,15 @@ export const createDbIfNeeded = async (db: SQLiteDatabase) => {
         date TEXT NOT NULL,
         completed_at INTEGER DEFAULT NULL,
         FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE
+        UNIQUE (habit_id, date)
       );`
+    );
+
+    await database.runAsync(
+      `CREATE TABLE IF NOT EXISTS metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )`
     );
 
     console.log("Database initialized successfully.");
