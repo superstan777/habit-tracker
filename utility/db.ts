@@ -1,6 +1,6 @@
 import { SQLiteDatabase, openDatabaseAsync } from "expo-sqlite";
 
-export const DB_NAME = "habit_tracker111.db";
+export const DB_NAME = "habit_tracker11111.db";
 // export const DB_NAME = "test1111111111.db";
 
 export let database: SQLiteDatabase;
@@ -18,7 +18,8 @@ export const createDbIfNeeded = async (db: SQLiteDatabase) => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         days TEXT NOT NULL,
-        created_at INTEGER
+        created_at INTEGER,
+        done_times INTEGER DEFAULT 0 
       );`
     );
 
@@ -33,7 +34,7 @@ export const createDbIfNeeded = async (db: SQLiteDatabase) => {
       );`
     );
 
-    await database.runAsync(
+    await db.execAsync(
       `CREATE TABLE IF NOT EXISTS metadata (
         key TEXT PRIMARY KEY,
         value TEXT
