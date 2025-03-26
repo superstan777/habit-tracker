@@ -3,6 +3,7 @@ export type habitType = {
   name: string;
   created_at: number;
   days: string;
+  done_times: number;
 };
 
 export type eventType = {
