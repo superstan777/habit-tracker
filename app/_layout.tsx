@@ -21,12 +21,17 @@ export default function RootLayout() {
     if (midnightTimeout) clearTimeout(midnightTimeout); // Clear any existing timeout
 
     const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0); // Set time to 00:00 of next day
-    const timeUntilMidnight = midnight.getTime() - now.getTime();
+
+    // Calculate next local midnight
+    const nextMidnight = new Date(now);
+    nextMidnight.setDate(now.getDate() + 1); // Move to next day
+    nextMidnight.setHours(0, 0, 0, 0); // Reset time to midnight
+
+    const timeUntilMidnight = nextMidnight.getTime() - now.getTime(); // Time left until next midnight
 
     midnightTimeout = setTimeout(() => {
-      setCurrentDate(); // Update the UI for the new date
+      setCurrentDate(); // Update UI for new date
+      scheduleMidnightUpdate(); // Reschedule for the next midnight
     }, timeUntilMidnight);
   };
 
