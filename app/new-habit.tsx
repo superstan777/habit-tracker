@@ -28,10 +28,21 @@ export const NewHabitScreen = () => {
   };
 
   const getWeekStartDate = (date: Date) => {
-    const dayOfWeek = date.getDay(); // 0 (Sun) to 6 (Sat)
-    const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust to our Mon-Sun format
-    const startDate = new Date(date);
-    startDate.setDate(date.getDate() - adjustedDayOfWeek);
+    const dayOfWeek = date.getUTCDay(); // 0 (Sun) to 6 (Sat) in UTC
+    const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust to Mon-Sun format
+
+    const startDate = new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate() - adjustedDayOfWeek, // Move back to Monday
+        0,
+        0,
+        0,
+        0 // Set to midnight UTC
+      )
+    );
+
     return startDate;
   };
 
@@ -47,20 +58,46 @@ export const NewHabitScreen = () => {
 
       const today = new Date();
       const currentWeekStart = getWeekStartDate(today);
-      const nextWeekStart = new Date(currentWeekStart);
-      nextWeekStart.setDate(currentWeekStart.getDate() + 7); // Move to next week
+
+      const nextWeekStart = new Date(
+        Date.UTC(
+          currentWeekStart.getUTCFullYear(),
+          currentWeekStart.getUTCMonth(),
+          currentWeekStart.getUTCDate() + 7,
+          0,
+          0,
+          0,
+          0
+        )
+      );
 
       const addEventsForWeek = async (weekStart: Date) => {
+        const todayUTC = new Date(
+          Date.UTC(
+            today.getUTCFullYear(),
+            today.getUTCMonth(),
+            today.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+          )
+        );
+
         for (let i = 0; i < 7; i++) {
           if (selectedDays[i]) {
             const eventDate = new Date(weekStart);
-            eventDate.setDate(weekStart.getDate() + i);
-            const formattedDate = eventDate.toISOString().split("T")[0];
+            eventDate.setUTCDate(weekStart.getUTCDate() + i); // Safely move to the next date
+            eventDate.setUTCHours(0, 0, 0, 0); // Normalize time in UTC
 
-            await database.runAsync(
-              `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
-              [habitId, formattedDate, null]
-            );
+            if (eventDate >= todayUTC) {
+              const formattedDate = eventDate.toISOString().split("T")[0];
+
+              await database.runAsync(
+                `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
+                [habitId, formattedDate, null]
+              );
+            }
           }
         }
       };
