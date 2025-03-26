@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View, Dimensions } from "react-native";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { useFocusEffect } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -10,14 +10,15 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { router } from "expo-router";
-import { eventType } from "@/types/types";
+import { eventType, habitType } from "@/types/types";
+import { convertUTCToLocal } from "@/utility/dateFunctions";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 interface Props {
   name: string;
-  currentDate: Date;
-  currentWeek: Date[];
+  currentDate: string; // UTC stored as "YYYY-MM-DD"
+  currentWeek: string[]; // Array of UTC dates as "YYYY-MM-DD"
   id: number;
 }
 
@@ -32,42 +33,82 @@ export const HabitItem: React.FC<Props> = ({
   currentWeek,
   id,
 }) => {
+  const [isReadyToComplete, setIsReadyToComplete] = useState(false);
+
   const [events, setEvents] = useState<eventType[]>([]);
+  const [doneTimes, setDoneTimes] = useState<number | undefined>(undefined);
   const database = useSQLiteContext();
   const position = useSharedValue(0);
+
+  const localCurrentDate = useMemo(
+    () => convertUTCToLocal(currentDate),
+    [currentDate]
+  );
+  const localCurrentWeek = useMemo(
+    () => currentWeek.map(convertUTCToLocal),
+    [currentWeek]
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadEvents();
+      getDoneTimes();
     }, [])
   );
+
+  useEffect(() => {
+    if (events.length > 0) {
+      checkIfReadyToComplete();
+    }
+  }, [events]);
+
+  const checkIfReadyToComplete = () => {
+    const todayUTC = new Date().toISOString().split("T")[0]; // Get today's UTC date
+    const todayEvent = events.find((event) => event.date === todayUTC);
+
+    if (todayEvent && !todayEvent.completed_at) {
+      setIsReadyToComplete(true);
+    } else {
+      setIsReadyToComplete(false);
+    }
+  };
+
+  const getDoneTimes = async () => {
+    const { done_times } = await database.getFirstAsync<habitType>(
+      "SELECT done_times FROM habits WHERE id = ?",
+      [id]
+    );
+    setDoneTimes(done_times);
+  };
 
   const loadEvents = async () => {
     const result = await database.getAllAsync<eventType>(
       "SELECT * FROM habit_events WHERE habit_id = ? AND date BETWEEN ? AND ?",
-      [
-        id,
-        currentWeek[0].toISOString().split("T")[0],
-        currentWeek[6].toISOString().split("T")[0],
-      ]
+      [id, currentWeek[0], currentWeek[6]]
     );
     setEvents(result);
   };
 
+  const updateDoneTimes = async () => {
+    await database.runAsync(
+      "UPDATE habits SET done_times = ? WHERE id = ?",
+
+      [doneTimes + 1, id]
+    );
+  };
+
   const updateHabitEvent = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const todayUTC = new Date().toISOString().split("T")[0];
     await database.runAsync(
       `UPDATE habit_events SET completed_at = ? WHERE habit_id = ? AND date = ?`,
-      [Date.now(), id, today]
+      [Date.now(), id, todayUTC]
     );
   };
 
   const memoizedEvents = useMemo(() => events, [events]);
 
-  const renderFrequency = useMemo(() => {
-    return memoizedEvents.length === 7
-      ? "everyday"
-      : `${memoizedEvents.length} times a week`;
+  const renderDoneTimes = useMemo(() => {
+    return `Done ${doneTimes} times`;
   }, [memoizedEvents]);
 
   const renderDays = (index: number) => {
@@ -76,24 +117,27 @@ export const HabitItem: React.FC<Props> = ({
   };
 
   const resetPosition = () => {
-    position.value = -SCREEN_WIDTH; // Move to the left side
-    position.value = withTiming(0, { duration: 300 }); // Animate back to the center
+    position.value = -SCREEN_WIDTH;
+    position.value = withTiming(0, { duration: 300 });
   };
 
   const panGesture = Gesture.Pan()
+    .enabled(isReadyToComplete)
     .onUpdate((e) => {
       position.value = e.translationX;
     })
     .onEnd(() => {
       if (position.value > SCREEN_WIDTH / 2) {
         position.value = withTiming(SCREEN_WIDTH, { duration: 300 }, () => {
-          runOnJS(resetPosition)(); // Reset from the left side after animation
+          runOnJS(resetPosition)();
         });
 
         runOnJS(updateHabitEvent)();
+        runOnJS(updateDoneTimes)();
         runOnJS(loadEvents)();
+        runOnJS(getDoneTimes)();
       } else {
-        position.value = withTiming(0, { duration: 300 }); // Snap back if not swiped enough
+        position.value = withTiming(0, { duration: 300 });
       }
     });
 
@@ -111,11 +155,11 @@ export const HabitItem: React.FC<Props> = ({
         >
           <View style={styles.habitHeader}>
             <Text style={styles.habitTitle}>{name}</Text>
-            <Text style={styles.habitText}>{renderFrequency}</Text>
+            <Text style={styles.habitText}>{renderDoneTimes}</Text>
           </View>
           <View style={styles.daysRow}>
-            {currentWeek.map((date, index) => {
-              const dateString = date.toISOString().split("T")[0];
+            {localCurrentWeek.map((date, index) => {
+              const dateString = currentWeek[index]; // Still compare with stored UTC
               const event = memoizedEvents.find((e) => e.date === dateString);
               let bgColor = "transparent";
               let textColor = colorDefaultText;
@@ -125,7 +169,7 @@ export const HabitItem: React.FC<Props> = ({
               } else if (event.completed_at) {
                 bgColor = colorCompleted;
                 textColor = "white";
-              } else if (date < currentDate) {
+              } else if (date < localCurrentDate) {
                 bgColor = colorNotCompleted;
                 textColor = "white";
               } else {
@@ -142,7 +186,7 @@ export const HabitItem: React.FC<Props> = ({
                       {
                         backgroundColor: bgColor,
                         borderWidth:
-                          date.getDate() === currentDate.getDate() ? 4 : 0,
+                          date.getDate() === localCurrentDate.getDate() ? 4 : 0,
                         borderColor: colorCompleted,
                       },
                     ]}
