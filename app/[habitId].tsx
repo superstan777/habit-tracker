@@ -11,34 +11,41 @@ import { router } from "expo-router";
 import Button from "@/components/Button";
 import { useLocalSearchParams } from "expo-router";
 import { useStore } from "@/utility/store";
+import { habitType } from "@/types/types";
 
 export const HabitDetailsScreen = () => {
   const { currentDate } = useStore();
 
-  const { habitId } = useLocalSearchParams();
+  const habitId = Number(useLocalSearchParams().habitId);
 
   const database = useSQLiteContext();
   const [habitName, setHabitName] = useState("");
-  const [selectedDays, setSelectedDays] = useState([
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-  ]);
+  const [selectedDays, setSelectedDays] = useState<boolean[]>([]);
 
   useEffect(() => {
-    async function fetchHabit() {
-      const result = await database.getFirstAsync(
-        "SELECT * FROM habits WHERE id = ?",
-        [habitId]
-      );
+    const fetchHabit = async () => {
+      try {
+        const result: habitType | null = await database.getFirstAsync(
+          "SELECT * FROM habits WHERE id = ?",
+          [habitId]
+        );
 
-      setHabitName(result.name);
-      setSelectedDays(JSON.parse(result.days));
-    }
+        if (!result) {
+          console.error(`Habit with ID ${habitId} not found.`);
+          router.back();
+          return;
+        }
+
+        setHabitName(result.name || "");
+        setSelectedDays(
+          result.days
+            ? JSON.parse(result.days)
+            : [false, false, false, false, false, false, false]
+        );
+      } catch (error) {
+        console.error("Error fetching habit:", error);
+      }
+    };
 
     fetchHabit();
   }, [habitId]);
@@ -47,7 +54,7 @@ export const HabitDetailsScreen = () => {
 
   const toggleDay = (index: number) => {
     setSelectedDays((prev) => {
-      const newDays = [...prev];
+      const newDays: boolean[] = [...prev];
       newDays[index] = !newDays[index]; // Toggle the boolean value
       return newDays;
     });
@@ -55,14 +62,11 @@ export const HabitDetailsScreen = () => {
 
   const updateHabit = async () => {
     try {
-      // Get today's date and day index
+      const today = new Date(currentDate);
+      const todayIndex = today.getDay(); // 0 (Sun) to 6 (Sat)
 
-      const todayIndex = currentDate.getDay(); // 0 (Sun) to 6 (Sat)
-
-      // Adjust todayIndex to match our `selectedDays` array (Mon = 0, Sun = 6)
       const adjustedTodayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
 
-      // Convert selected days array to JSON
       const updatedDaysJson = JSON.stringify(selectedDays);
 
       // Update the habit name and selected days
@@ -72,7 +76,7 @@ export const HabitDetailsScreen = () => {
       );
 
       // Delete existing events for this habit in the current week
-      const todayDateString = currentDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+      const todayDateString = today.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       await database.runAsync(
         `DELETE FROM habit_events WHERE habit_id = ? AND date >= ?`,
         [habitId, todayDateString] // Use the formatted date string to delete today's and future events
@@ -82,7 +86,7 @@ export const HabitDetailsScreen = () => {
       for (let i = adjustedTodayIndex; i < 7; i++) {
         if (selectedDays[i]) {
           const nextDate = new Date();
-          nextDate.setDate(currentDate.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
+          nextDate.setDate(today.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
 
           // Format the date in YYYY-MM-DD format
           const formattedDate = nextDate.toISOString().split("T")[0];
