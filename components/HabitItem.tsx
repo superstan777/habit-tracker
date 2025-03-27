@@ -40,6 +40,8 @@ export const HabitItem: React.FC<Props> = ({
   const database = useSQLiteContext();
   const position = useSharedValue(0);
 
+  console.log(events);
+
   const localCurrentDate = useMemo(
     () => convertUTCToLocal(currentDate),
     [currentDate]
