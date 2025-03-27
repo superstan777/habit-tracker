@@ -36,7 +36,7 @@ export const HabitItem: React.FC<Props> = ({
   const [isReadyToComplete, setIsReadyToComplete] = useState(false);
 
   const [events, setEvents] = useState<eventType[]>([]);
-  const [doneTimes, setDoneTimes] = useState<number | undefined>(undefined);
+  const [doneTimes, setDoneTimes] = useState<number>(0);
   const database = useSQLiteContext();
   const position = useSharedValue(0);
 
@@ -48,6 +48,8 @@ export const HabitItem: React.FC<Props> = ({
     () => currentWeek.map(convertUTCToLocal),
     [currentWeek]
   );
+
+  console.log(events.length);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,17 +76,19 @@ export const HabitItem: React.FC<Props> = ({
   };
 
   const getDoneTimes = async () => {
-    const { done_times } = await database.getFirstAsync<habitType>(
+    const result = await database.getFirstAsync<habitType>(
       "SELECT done_times FROM habits WHERE id = ?",
       [id]
     );
-    setDoneTimes(done_times);
+    setDoneTimes(result!.done_times);
   };
 
   const loadEvents = async () => {
     const result = await database.getAllAsync<eventType>(
-      "SELECT * FROM habit_events WHERE habit_id = ? AND date BETWEEN ? AND ?",
-      [id, currentWeek[0], currentWeek[6]]
+      "SELECT * FROM habit_events WHERE habit_id = ? ",
+      // "SELECT * FROM habit_events WHERE habit_id = ? AND date BETWEEN ? AND ?",
+      // [id, currentWeek[0], currentWeek[6]]
+      [id]
     );
     setEvents(result);
   };
