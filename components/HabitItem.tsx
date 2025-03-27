@@ -49,8 +49,6 @@ export const HabitItem: React.FC<Props> = ({
     [currentWeek]
   );
 
-  // console.log(events.length);
-
   useFocusEffect(
     useCallback(() => {
       loadEvents();
