@@ -11,3 +11,22 @@ export const convertUTCToLocal = (utcDate: string): Date => {
     utcDateObj.getTime() + utcDateObj.getTimezoneOffset() * 60000
   );
 };
+
+export const getWeekStartDateUTC = (date: Date) => {
+  const dayOfWeek = date.getUTCDay();
+  const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+  const startDate = new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() - adjustedDayOfWeek,
+      0,
+      0,
+      0,
+      0
+    )
+  );
+
+  return startDate;
+};

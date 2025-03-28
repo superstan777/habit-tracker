@@ -9,6 +9,7 @@ import {
 import { useSQLiteContext } from "expo-sqlite";
 import { router } from "expo-router";
 import Button from "@/components/Button";
+import { getWeekStartDateUTC } from "@/utility/dateFunctions";
 
 export const NewHabitScreen = () => {
   const database = useSQLiteContext();
@@ -27,25 +28,6 @@ export const NewHabitScreen = () => {
     });
   };
 
-  const getWeekStartDate = (date: Date) => {
-    const dayOfWeek = date.getUTCDay(); // 0 (Sun) to 6 (Sat) in UTC
-    const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust to Mon-Sun format
-
-    const startDate = new Date(
-      Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate() - adjustedDayOfWeek, // Move back to Monday
-        0,
-        0,
-        0,
-        0 // Set to midnight UTC
-      )
-    );
-
-    return startDate;
-  };
-
   const createHabit = async () => {
     try {
       const createdAt = Date.now();
@@ -57,7 +39,7 @@ export const NewHabitScreen = () => {
         .then((result) => result.lastInsertRowId);
 
       const today = new Date();
-      const currentWeekStart = getWeekStartDate(today);
+      const currentWeekStart = getWeekStartDateUTC(today);
 
       const nextWeekStart = new Date(
         Date.UTC(
@@ -71,19 +53,19 @@ export const NewHabitScreen = () => {
         )
       );
 
-      const addEventsForWeek = async (weekStart: Date) => {
-        const todayUTC = new Date(
-          Date.UTC(
-            today.getUTCFullYear(),
-            today.getUTCMonth(),
-            today.getUTCDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        );
+      const todayUTC = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          today.getUTCDate(),
+          0,
+          0,
+          0,
+          0
+        )
+      );
 
+      const addEventsForWeek = async (weekStart: Date) => {
         for (let i = 0; i < 7; i++) {
           if (selectedDays[i]) {
             const eventDate = new Date(weekStart);
