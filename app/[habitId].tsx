@@ -12,6 +12,11 @@ import Button from "@/components/Button";
 import { useLocalSearchParams } from "expo-router";
 import { useStore } from "@/utility/store";
 import { habitType } from "@/types/types";
+import {
+  addEventsForCurrentWeek,
+  addEventsForNextWeek,
+} from "@/utility/eventFunctions";
+import { getWeekStartDateUTC } from "@/utility/dateFunctions";
 
 export const HabitDetailsScreen = () => {
   const { currentDate } = useStore();
@@ -62,14 +67,25 @@ export const HabitDetailsScreen = () => {
 
   const updateHabit = async () => {
     try {
-      const today = new Date(currentDate);
-      const todayIndex = today.getDay(); // 0 (Sun) to 6 (Sat)
+      const today = new Date();
+      const currentWeekStart = getWeekStartDateUTC(today);
 
-      const adjustedTodayIndex = todayIndex === 0 ? 6 : todayIndex - 1;
+      const nextWeekStart = new Date(
+        Date.UTC(
+          currentWeekStart.getUTCFullYear(),
+          currentWeekStart.getUTCMonth(),
+          currentWeekStart.getUTCDate() + 7,
+          0,
+          0,
+          0,
+          0
+        )
+      );
 
       const updatedDaysJson = JSON.stringify(selectedDays);
 
-      // Update the habit name and selected days
+      //check if the habit name has changed
+
       await database.runAsync(
         "UPDATE habits SET name = ?, days = ? WHERE id = ?",
         [habitName, updatedDaysJson, habitId]
@@ -78,25 +94,17 @@ export const HabitDetailsScreen = () => {
       // Delete existing events for this habit in the current week
       const todayDateString = today.toISOString().split("T")[0]; // Format as YYYY-MM-DD
       await database.runAsync(
-        `DELETE FROM habit_events WHERE habit_id = ? AND date >= ?`,
+        `DELETE FROM habit_events WHERE habit_id = ? AND date >= ? AND completed_at IS NULL`,
         [habitId, todayDateString] // Use the formatted date string to delete today's and future events
       );
 
-      // Iterate over the next days until Sunday (end of the current week)
-      for (let i = adjustedTodayIndex; i < 7; i++) {
-        if (selectedDays[i]) {
-          const nextDate = new Date();
-          nextDate.setDate(today.getDate() + (i - adjustedTodayIndex)); // Move forward only within this week
-
-          // Format the date in YYYY-MM-DD format
-          const formattedDate = nextDate.toISOString().split("T")[0];
-
-          await database.runAsync(
-            `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
-            [habitId, formattedDate, null]
-          );
-        }
-      }
+      addEventsForCurrentWeek(
+        database,
+        habitId,
+        selectedDays,
+        currentWeekStart
+      );
+      addEventsForNextWeek(database, habitId, selectedDays, nextWeekStart);
 
       console.log("Habit updated successfully!");
       router.back();
@@ -149,9 +157,10 @@ export const HabitDetailsScreen = () => {
           </TouchableOpacity>
         ))}
       </View>
-
-      <Button onPress={updateHabit}>Save</Button>
-      <Button onPress={deleteHabit}>Delete</Button>
+      <View style={styles.buttonContainer}>
+        <Button onPress={updateHabit}>Save</Button>
+        <Button onPress={deleteHabit}>Delete</Button>
+      </View>
     </View>
   );
 };
@@ -178,6 +187,14 @@ const styles = StyleSheet.create({
   selectedDay: { backgroundColor: "#4CAF50" },
   dayText: { fontSize: 14, fontWeight: "bold" },
   selectedDayText: { color: "#FFF" },
+
+  buttonContainer: {
+    justifyContent: "space-between",
+    display: "flex",
+    gap: 8,
+    marginVertical: 20,
+    width: "100%",
+  },
 });
 
 export default HabitDetailsScreen;

@@ -10,6 +10,11 @@ import { useSQLiteContext } from "expo-sqlite";
 import { router } from "expo-router";
 import Button from "@/components/Button";
 import { getWeekStartDateUTC } from "@/utility/dateFunctions";
+import {
+  addEventsForCurrentWeek,
+  addAllEventsForNextWeek,
+  addEventsForNextWeek,
+} from "@/utility/eventFunctions";
 
 export const NewHabitScreen = () => {
   const database = useSQLiteContext();
@@ -53,39 +58,18 @@ export const NewHabitScreen = () => {
         )
       );
 
-      const todayUTC = new Date(
-        Date.UTC(
-          today.getUTCFullYear(),
-          today.getUTCMonth(),
-          today.getUTCDate(),
-          0,
-          0,
-          0,
-          0
-        )
+      await addEventsForCurrentWeek(
+        database,
+        habitId,
+        selectedDays,
+        currentWeekStart
       );
-
-      const addEventsForWeek = async (weekStart: Date) => {
-        for (let i = 0; i < 7; i++) {
-          if (selectedDays[i]) {
-            const eventDate = new Date(weekStart);
-            eventDate.setUTCDate(weekStart.getUTCDate() + i); // Safely move to the next date
-            eventDate.setUTCHours(0, 0, 0, 0); // Normalize time in UTC
-
-            if (eventDate >= todayUTC) {
-              const formattedDate = eventDate.toISOString().split("T")[0];
-
-              await database.runAsync(
-                `INSERT INTO habit_events (habit_id, date, completed_at) VALUES (?, ?, NULL)`,
-                [habitId, formattedDate, null]
-              );
-            }
-          }
-        }
-      };
-
-      await addEventsForWeek(currentWeekStart);
-      await addEventsForWeek(nextWeekStart);
+      await addEventsForNextWeek(
+        database,
+        habitId,
+        selectedDays,
+        nextWeekStart
+      );
 
       router.back();
     } catch (error) {
